@@ -1,19 +1,60 @@
 document.addEventListener("DOMContentLoaded", () => {
   const activitiesList = document.getElementById("activities-list");
+  const clubsList = document.getElementById("clubs-list");
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  let selectedClub = null;
+
+  async function fetchClubs() {
+    try {
+      const response = await fetch("/clubs");
+      const clubs = await response.json();
+      clubsList.innerHTML = "";
+
+      clubs.forEach((club) => {
+        const clubCard = document.createElement("button");
+        clubCard.type = "button";
+        clubCard.className = "club-card";
+        clubCard.dataset.club = club.name;
+        if (selectedClub === club.name) {
+          clubCard.classList.add("selected");
+        }
+
+        clubCard.innerHTML = `
+          <span class="club-icon">${club.image}</span>
+          <span class="club-info">
+            <strong>${club.name}</strong>
+            <small>${club.category}</small>
+          </span>
+          <span class="club-meta">${club.available_spots} spots</span>
+        `;
+
+        clubCard.addEventListener("click", () => {
+          selectedClub = club.name;
+          fetchClubs();
+          fetchActivities(selectedClub);
+        });
+
+        clubsList.appendChild(clubCard);
+      });
+    } catch (error) {
+      clubsList.innerHTML = "<p>Failed to load clubs.</p>";
+      console.error("Error fetching clubs:", error);
+    }
+  }
 
   // Function to fetch activities from API
-  async function fetchActivities() {
+  async function fetchActivities(clubName = selectedClub) {
     try {
-      const response = await fetch("/activities");
+      const url = clubName ? `/activities?club=${encodeURIComponent(clubName)}` : "/activities";
+      const response = await fetch(url);
       const activities = await response.json();
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
-      // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
@@ -21,7 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft =
           details.max_participants - details.participants.length;
 
-        // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
           details.participants.length > 0
             ? `<div class="participants-section">
@@ -41,6 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <p><strong>Category:</strong> ${details.category || "General"}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-container">
             ${participantsHTML}
@@ -49,14 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         activitiesList.appendChild(activityCard);
 
-        // Add option to select dropdown
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
       });
 
-      // Add event listeners to delete buttons
       document.querySelectorAll(".delete-btn").forEach((button) => {
         button.addEventListener("click", handleUnregister);
       });
@@ -67,7 +106,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Handle unregister functionality
   async function handleUnregister(event) {
     const button = event.target;
     const activity = button.getAttribute("data-activity");
@@ -88,9 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (response.ok) {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
-
-        // Refresh activities list to show updated participants
-        fetchActivities();
+        fetchActivities(selectedClub);
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -98,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       messageDiv.classList.remove("hidden");
 
-      // Hide message after 5 seconds
       setTimeout(() => {
         messageDiv.classList.add("hidden");
       }, 5000);
@@ -110,7 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Handle form submission
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -133,9 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
-
-        // Refresh activities list to show updated participants
-        fetchActivities();
+        fetchActivities(selectedClub);
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -143,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       messageDiv.classList.remove("hidden");
 
-      // Hide message after 5 seconds
       setTimeout(() => {
         messageDiv.classList.add("hidden");
       }, 5000);
@@ -155,6 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Initialize app
+  fetchClubs();
   fetchActivities();
 });
