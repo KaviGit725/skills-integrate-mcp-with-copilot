@@ -1,11 +1,14 @@
 """
 High School Management System API
 
-A super simple FastAPI application that allows students to view and sign up
+A simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
+
+The app now supports a light club-directory model so each club can act as a
+separate extracurricular profile while preserving the previous activity API.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
@@ -19,62 +22,95 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
+
+def make_club_record(name: str, description: str, schedule: str, max_participants: int,
+                    participants: list[str], category: str = "General") -> dict:
+    return {
+        "club": name,
+        "name": name,
+        "description": description,
+        "schedule": schedule,
+        "category": category,
+        "max_participants": max_participants,
+        "participants": participants,
+        "image": "🏫",
+    }
+
+
 # In-memory activity database
 activities = {
-    "Chess Club": {
-        "description": "Learn strategies and compete in chess tournaments",
-        "schedule": "Fridays, 3:30 PM - 5:00 PM",
-        "max_participants": 12,
-        "participants": ["michael@mergington.edu", "daniel@mergington.edu"]
-    },
-    "Programming Class": {
-        "description": "Learn programming fundamentals and build software projects",
-        "schedule": "Tuesdays and Thursdays, 3:30 PM - 4:30 PM",
-        "max_participants": 20,
-        "participants": ["emma@mergington.edu", "sophia@mergington.edu"]
-    },
-    "Gym Class": {
-        "description": "Physical education and sports activities",
-        "schedule": "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
-        "max_participants": 30,
-        "participants": ["john@mergington.edu", "olivia@mergington.edu"]
-    },
-    "Soccer Team": {
-        "description": "Join the school soccer team and compete in matches",
-        "schedule": "Tuesdays and Thursdays, 4:00 PM - 5:30 PM",
-        "max_participants": 22,
-        "participants": ["liam@mergington.edu", "noah@mergington.edu"]
-    },
-    "Basketball Team": {
-        "description": "Practice and play basketball with the school team",
-        "schedule": "Wednesdays and Fridays, 3:30 PM - 5:00 PM",
-        "max_participants": 15,
-        "participants": ["ava@mergington.edu", "mia@mergington.edu"]
-    },
-    "Art Club": {
-        "description": "Explore your creativity through painting and drawing",
-        "schedule": "Thursdays, 3:30 PM - 5:00 PM",
-        "max_participants": 15,
-        "participants": ["amelia@mergington.edu", "harper@mergington.edu"]
-    },
-    "Drama Club": {
-        "description": "Act, direct, and produce plays and performances",
-        "schedule": "Mondays and Wednesdays, 4:00 PM - 5:30 PM",
-        "max_participants": 20,
-        "participants": ["ella@mergington.edu", "scarlett@mergington.edu"]
-    },
-    "Math Club": {
-        "description": "Solve challenging problems and participate in math competitions",
-        "schedule": "Tuesdays, 3:30 PM - 4:30 PM",
-        "max_participants": 10,
-        "participants": ["james@mergington.edu", "benjamin@mergington.edu"]
-    },
-    "Debate Team": {
-        "description": "Develop public speaking and argumentation skills",
-        "schedule": "Fridays, 4:00 PM - 5:30 PM",
-        "max_participants": 12,
-        "participants": ["charlotte@mergington.edu", "henry@mergington.edu"]
-    }
+    "Chess Club": make_club_record(
+        "Chess Club",
+        "Learn strategies and compete in chess tournaments",
+        "Fridays, 3:30 PM - 5:00 PM",
+        12,
+        ["michael@mergington.edu", "daniel@mergington.edu"],
+        category="Academic"
+    ),
+    "Programming Class": make_club_record(
+        "Programming Class",
+        "Learn programming fundamentals and build software projects",
+        "Tuesdays and Thursdays, 3:30 PM - 4:30 PM",
+        20,
+        ["emma@mergington.edu", "sophia@mergington.edu"],
+        category="STEM"
+    ),
+    "Gym Class": make_club_record(
+        "Gym Class",
+        "Physical education and sports activities",
+        "Mondays, Wednesdays, Fridays, 2:00 PM - 3:00 PM",
+        30,
+        ["john@mergington.edu", "olivia@mergington.edu"],
+        category="Wellness"
+    ),
+    "Soccer Team": make_club_record(
+        "Soccer Team",
+        "Join the school soccer team and compete in matches",
+        "Tuesdays and Thursdays, 4:00 PM - 5:30 PM",
+        22,
+        ["liam@mergington.edu", "noah@mergington.edu"],
+        category="Sports"
+    ),
+    "Basketball Team": make_club_record(
+        "Basketball Team",
+        "Practice and play basketball with the school team",
+        "Wednesdays and Fridays, 3:30 PM - 5:00 PM",
+        15,
+        ["ava@mergington.edu", "mia@mergington.edu"],
+        category="Sports"
+    ),
+    "Art Club": make_club_record(
+        "Art Club",
+        "Explore your creativity through painting and drawing",
+        "Thursdays, 3:30 PM - 5:00 PM",
+        15,
+        ["amelia@mergington.edu", "harper@mergington.edu"],
+        category="Arts"
+    ),
+    "Drama Club": make_club_record(
+        "Drama Club",
+        "Act, direct, and produce plays and performances",
+        "Mondays and Wednesdays, 4:00 PM - 5:30 PM",
+        20,
+        ["ella@mergington.edu", "scarlett@mergington.edu"],
+        category="Arts"
+    ),
+    "Math Club": make_club_record(
+        "Math Club",
+        "Solve challenging problems and participate in math competitions",
+        "Tuesdays, 3:30 PM - 4:30 PM",
+        10,
+        ["james@mergington.edu", "benjamin@mergington.edu"],
+        category="Academic"
+    ),
+    "Debate Team": make_club_record(
+        "Debate Team",
+        "Develop public speaking and argumentation skills",
+        "Fridays, 4:00 PM - 5:30 PM",
+        12,
+        ["charlotte@mergington.edu", "henry@mergington.edu"],
+        category="Academic"
+    )
 }
 
 
@@ -83,14 +119,57 @@ def root():
     return RedirectResponse(url="/static/index.html")
 
 
+@app.get("/clubs")
+def get_clubs():
+    """Return a lightweight club directory so each extracurricular group has its own profile."""
+    clubs = []
+    for name, details in activities.items():
+        clubs.append({
+            "name": name,
+            "description": details["description"],
+            "category": details.get("category", "General"),
+            "schedule": details["schedule"],
+            "image": details.get("image", "🏫"),
+            "available_spots": max(details["max_participants"] - len(details["participants"]), 0),
+            "activity_count": 1,
+        })
+    return clubs
+
+
+@app.get("/clubs/{club_name}")
+def get_club(club_name: str):
+    """Get a single club profile with its activity details."""
+    club = activities.get(club_name)
+    if club is None:
+        raise HTTPException(status_code=404, detail="Club not found")
+    return {
+        "name": club["name"],
+        "description": club["description"],
+        "schedule": club["schedule"],
+        "category": club.get("category", "General"),
+        "image": club.get("image", "🏫"),
+        "max_participants": club["max_participants"],
+        "participants": club["participants"],
+    }
+
+
 @app.get("/activities")
-def get_activities():
-    return activities
+def get_activities(club: str | None = Query(default=None, alias="club")):
+    if club is None:
+        return activities
+
+    filtered = {
+        name: details for name, details in activities.items()
+        if name.lower() == club.lower() or details.get("club", "").lower() == club.lower()
+    }
+    if not filtered:
+        raise HTTPException(status_code=404, detail="Club not found")
+    return filtered
 
 
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str):
-    """Sign up a student for an activity"""
+    """Sign up a student for an activity."""
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -112,7 +191,7 @@ def signup_for_activity(activity_name: str, email: str):
 
 @app.delete("/activities/{activity_name}/unregister")
 def unregister_from_activity(activity_name: str, email: str):
-    """Unregister a student from an activity"""
+    """Unregister a student from an activity."""
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
